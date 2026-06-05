@@ -175,9 +175,15 @@ export function ProductDetailView({ product, inStock }: ProductDetailViewProps) 
             </button>
             <AddToCartButton
               productId={product.id}
-              inStock={inStock}
-              quantity={quantity}
-              className="space-y-0"
+  inStock={inStock}
+  quantity={quantity}
+  productName={product.name}
+  productSlug={product.slug}
+  productPrice={product.price}
+  productImageUrl={product.imageUrl}
+  productCategory={product.category}
+  productStockMax={product.stock}
+  className="space-y-0"
             />
           </div>
         </div>
