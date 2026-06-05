@@ -29,34 +29,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load from storage on mount safely
+  // Load from storage on mount
   useEffect(() => {
     const stored = localStorage.getItem("shopco_cart");
     if (stored) {
       try {
         setCart(JSON.parse(stored));
       } catch (e) {
-        console.error("Failed parsing cart local storage context data:", e);
+        console.error("Failed parsing cart data:", e);
       }
     }
     setIsInitialized(true);
   }, []);
 
-  // Save to storage on change tracking loop
+  // Sync to storage
   useEffect(() => {
     if (isInitialized) {
       localStorage.setItem("shopco_cart", JSON.stringify(cart));
     }
   }, [cart, isInitialized]);
 
+  // FIXED: addToCart now respects the quantity passed by the button
   const addToCart = (product: any) => {
+    const qtyToAdd = Number(product.quantity) || 1;
+    
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
+      
       if (existing) {
         return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id 
+            ? { ...item, quantity: item.quantity + qtyToAdd } 
+            : item
         );
       }
+      
       return [
         ...prev,
         {
@@ -66,7 +73,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           price: Number(product.price) || 0,
           imageUrl: product.imageUrl || product.image_url || "",
           category: product.category || "General",
-          quantity: 1,
+          quantity: qtyToAdd, // Uses the dynamic quantity
           stock: Number(product.stock) || 99,
         },
       ];
