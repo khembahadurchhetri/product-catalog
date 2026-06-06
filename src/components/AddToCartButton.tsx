@@ -42,7 +42,7 @@ export function AddToCartButton({
   
   // Find if item is already in cart to handle "Update" vs "Add"
   const items = cart?.items || [];
-  const existingItem = items.find((item: any) => item.id === productId);
+  const existingItem = items.find((item: any) => item.productId === productId);
 
   // Clear message after 3 seconds
   useEffect(() => {
@@ -66,7 +66,7 @@ export function AddToCartButton({
 
       if (quantityToAdd !== 0) {
         cart.addToCart({
-          id: productId,
+          productId: productId,
           name: productName,
           slug: productSlug,
           price: Number(productPrice),

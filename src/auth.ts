@@ -24,7 +24,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // 🛠️ 1. MASTER ADMIN ACCOUNT SEED BYPASS
         if (emailInput === "admin@store.com" && passwordInput === "admin123") {
           return {
-            id: "dev-master-seed-id",
+            id: "a0000000-0000-0000-0000-000000000001",
             email: "admin@store.com",
             name: "Master Admin",
             role: "admin" // 👈 Explicitly inject the admin role flag

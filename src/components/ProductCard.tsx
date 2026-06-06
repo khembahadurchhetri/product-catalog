@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
 import type { Product } from "@/db/schema";
 import { useCart } from "@/context/CartContext";
 
@@ -10,21 +12,31 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  // 🛒 Hook directly into your global client-side cart context engine
   const { addToCart } = useCart();
+  const { data: session } = useSession();
+  const [added, setAdded] = useState(false);
+  const [toast, setToast] = useState("");
 
-  // 🚀 Safely support both camelCase database schemas and snake_case API payloads
   const p = product as any;
   const currentImageUrl = p.imageUrl || p.image_url;
   const currentDescription = p.shortDescription || p.short_description;
 
-  // 🛑 Prevents navigating to the detail page when clicking the Add button
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
+
   const handleAddToCartClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Blocks the parent <Link> redirection handler
-    e.stopPropagation(); // Prevents click event bubbles up to the card element
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!session) {
+      showToast("Please sign in first");
+      return;
+    }
 
     addToCart({
-      id: product.id,
+      productId: product.id,
       name: product.name,
       price: Number(product.price),
       imageUrl: currentImageUrl || "/placeholder.jpg",
@@ -32,16 +44,28 @@ export function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
     });
 
-    alert(`🛍️ Added "${product.name}" to cart!`);
+    setAdded(true);
+    showToast("Added to cart!");
+    setTimeout(() => setAdded(false), 2000);
   };
 
   return (
+    // ✅ removed overflow-hidden from card — was clipping button on mobile
     <Link
       href={`/products/${product.slug}`}
-      className="group bg-white rounded-xl border border-neutral-100 shadow-sm hover:shadow-md transition duration-200 overflow-hidden flex flex-col cursor-pointer block h-full"
+      className="group relative bg-white rounded-xl border border-neutral-100 shadow-sm hover:shadow-md transition duration-200 flex flex-col cursor-pointer block h-full"
     >
-      {/* Product Image Wrapper */}
-      <div className="h-44 bg-neutral-50 relative overflow-hidden shrink-0 sm:h-48">
+      {/* Toast — now works because card is not overflow-hidden */}
+      {toast && (
+        <div className={`absolute top-2 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 rounded-lg text-xs font-bold shadow-md text-white whitespace-nowrap ${
+          toast.includes("sign in") ? "bg-orange-500" : "bg-green-600"
+        }`}>
+          {toast}
+        </div>
+      )}
+
+      {/* Product Image — overflow-hidden only on image div */}
+      <div className="h-44 bg-neutral-50 relative overflow-hidden rounded-t-xl shrink-0 sm:h-48">
         {currentImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -56,7 +80,7 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </div>
 
-      {/* Product Information Context Box */}
+      {/* Product Info */}
       <div className="p-3 flex flex-col flex-1 justify-between space-y-1.5 sm:p-4">
         <div>
           <span className="text-[10px] font-bold tracking-widest uppercase text-neutral-400 block">
@@ -70,7 +94,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
         </div>
 
-        {/* Price and Stock/Action Bar */}
+        {/* Price + Action Bar */}
         <div className="flex justify-between items-center pt-2 border-t border-neutral-100 mt-auto gap-2">
           <div className="flex flex-col">
             <span className="font-bold text-sm sm:text-base text-neutral-900">
@@ -81,14 +105,16 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
 
-          {/* 🚀 FIXED: Interactive item addition engine */}
+          {/* ✅ Always visible button */}
           <button
             type="button"
             disabled={product.stock <= 0}
             onClick={handleAddToCartClick}
-            className="rounded-lg bg-neutral-950 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-neutral-800 active:scale-95 disabled:bg-neutral-200 disabled:text-neutral-400 disabled:scale-100 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold text-white transition active:scale-95 disabled:bg-neutral-200 disabled:text-neutral-400 disabled:scale-100 disabled:cursor-not-allowed cursor-pointer shrink-0 ${
+              added ? "bg-green-600 hover:bg-green-700" : "bg-neutral-950 hover:bg-neutral-800"
+            }`}
           >
-            Add +
+            {added ? "✓ Added" : "Add +"}
           </button>
         </div>
       </div>

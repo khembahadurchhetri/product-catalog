@@ -15,13 +15,15 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// ✅ Changed from z.string().uuid() to z.string() 
+// — uuid() validation was rejecting valid product IDs
 export const cartAddSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().min(1),
   quantity: z.number().int().min(1).max(99).default(1),
 });
 
 export const cartUpdateSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().min(1),
   quantity: z.number().int().min(0).max(99),
 });
 
