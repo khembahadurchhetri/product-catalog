@@ -24,11 +24,9 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Upload Panel Modal State
   const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // Form values state for uploading new items
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -39,7 +37,6 @@ export default function AdminDashboardPage() {
     imageUrl: "",
   });
 
-  // Fetch metrics data from the database API
   async function loadDashboardMetrics() {
     try {
       setLoading(true);
@@ -47,7 +44,7 @@ export default function AdminDashboardPage() {
       if (!response.ok) throw new Error("Could not fetch dashboard data.");
       const json = await response.json();
       setData(json);
-      setError(null); // Clear errors if retry works
+      setError(null);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -59,7 +56,6 @@ export default function AdminDashboardPage() {
     loadDashboardMetrics();
   }, []);
 
-  // Handle product deletion
   async function handleDeleteProduct(id: string) {
     if (!confirm("Are you sure you want to delete this product?")) return;
     try {
@@ -70,30 +66,19 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Handle Upload Submission
   async function handleUploadSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-
     try {
       const res = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
       if (res.ok) {
-        setIsUploadPanelOpen(false); // Close panel on success
-        setFormData({
-          name: "",
-          category: "",
-          price: "",
-          stock: "",
-          shortDescription: "",
-          longDescription: "",
-          imageUrl: "",
-        });
-        loadDashboardMetrics(); // Instantly refresh the products table view below
+        setIsUploadPanelOpen(false);
+        setFormData({ name: "", category: "", price: "", stock: "", shortDescription: "", longDescription: "", imageUrl: "" });
+        loadDashboardMetrics();
       } else {
         alert("Failed to upload product record to database.");
       }
@@ -106,9 +91,9 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto min-h-screen bg-gray-50">
       
-      {/* 1. Top Management Action Bar (Now always viewable!) */}
+      {/* Top Action Bar */}
       <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
         <div>
           <h2 className="text-base font-bold text-gray-900">Products Catalog Management</h2>
@@ -116,13 +101,12 @@ export default function AdminDashboardPage() {
         </div>
         <button
           onClick={() => setIsUploadPanelOpen(true)}
-          className="bg-black text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-gray-800 transition active:scale-98 cursor-pointer z-10"
+          className="bg-black text-white text-xs font-semibold px-4 py-2.5 rounded-lg hover:bg-gray-800 transition cursor-pointer whitespace-nowrap"
         >
           🚀 Upload New Product
         </button>
       </div>
 
-      {/* 2. Catch Empty states or network faults gracefully without killing action options */}
       {loading ? (
         <div className="p-12 text-center text-sm font-medium text-gray-400 bg-white rounded-xl border border-gray-100 shadow-xs animate-pulse">
           🔄 Syncing database tables...
@@ -137,8 +121,8 @@ export default function AdminDashboardPage() {
         </div>
       ) : (
         <>
-          {/* 3. Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-xs">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Unique Items</p>
               <h3 className="text-3xl font-bold mt-2 text-gray-900">{data?.stats?.totalProducts ?? 0}</h3>
@@ -153,69 +137,65 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* 4. Products Data Listing Grid Table */}
+          {/* ✅ overflow-x-auto wrapper — table scrolls horizontally on mobile */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-xs overflow-hidden">
-            <table className="w-full text-left text-sm text-gray-500">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100 font-semibold tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Product Name</th>
-                  <th className="px-6 py-4">Category</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Stock Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {!data?.products || data.products.length === 0 ? (
+            <div className="overflow-x-auto w-full">
+              <table className="min-w-[600px] w-full text-left text-sm text-gray-500">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-100 font-semibold tracking-wider">
                   <tr>
-                    <td colSpan={5} className="text-center py-12 text-xs font-medium text-gray-400 bg-gray-50/50">
-                      📭 No products deployed inside your Neon tables. Click "Upload New Product" above to push your first item live!
-                    </td>
+                    <th className="px-4 sm:px-6 py-4">Product Name</th>
+                    <th className="px-4 sm:px-6 py-4">Category</th>
+                    <th className="px-4 sm:px-6 py-4">Price</th>
+                    <th className="px-4 sm:px-6 py-4">Stock Status</th>
+                    <th className="px-4 sm:px-6 py-4 text-right min-w-[100px]">Actions</th>
                   </tr>
-                ) : (
-                  data.products.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50/50 transition duration-150">
-                      <td className="px-6 py-4 font-medium text-gray-900">{product.name}</td>
-                      <td className="px-6 py-4 text-gray-600">{product.category}</td>
-                      <td className="px-6 py-4 text-gray-900 font-medium">${Number(product.price).toFixed(2)}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${product.stock < 5 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
-                          {product.stock} units left
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className="text-red-500 hover:text-red-700 text-xs font-semibold cursor-pointer border border-transparent hover:border-red-100 rounded px-2 py-1 transition"
-                        >
-                          Delete Row
-                        </button>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {!data?.products || data.products.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-12 text-xs font-medium text-gray-400 bg-gray-50/50">
+                        📭 No products deployed. Click "Upload New Product" above to push your first item live!
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    data.products.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50/50 transition duration-150">
+                        <td className="px-4 sm:px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{product.name}</td>
+                        <td className="px-4 sm:px-6 py-4 text-gray-600 whitespace-nowrap">{product.category}</td>
+                        <td className="px-4 sm:px-6 py-4 text-gray-900 font-medium whitespace-nowrap">${Number(product.price).toFixed(2)}</td>
+                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${product.stock < 5 ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                            {product.stock} units left
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-6 py-4 text-right whitespace-nowrap min-w-[100px]">
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="text-red-500 hover:text-red-700 text-xs font-semibold cursor-pointer border border-transparent hover:border-red-100 rounded px-2 py-1 transition"
+                          >
+                            Delete Row
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}
 
-      {/* 5. PRODUCT UPLOAD DRAWER / MODAL PANEL */}
+      {/* Upload Modal */}
       {isUploadPanelOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
-            
             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Upload Inventory Item</h3>
                 <p className="text-xs text-gray-500">Fill in the specifications to publish live to the store.</p>
               </div>
-              <button 
-                onClick={() => setIsUploadPanelOpen(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg p-1 cursor-pointer"
-              >
-                ✕
-              </button>
+              <button onClick={() => setIsUploadPanelOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg p-1 cursor-pointer">✕</button>
             </div>
             
             <form onSubmit={handleUploadSubmit} className="space-y-4 text-xs font-medium">
@@ -268,5 +248,4 @@ export default function AdminDashboardPage() {
       )}
     </div>
   );
-
 }

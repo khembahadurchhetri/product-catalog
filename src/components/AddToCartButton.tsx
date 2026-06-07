@@ -2,16 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 
-type AddToCartButtonProps = {
+export type AddToCartButtonProps = {
   productId: string;
   inStock: boolean;
   quantity?: number;
   className?: string;
   buttonLabel?: string;
-  // 🚀 Pass along additional parameters required to populate your Context state model
   productName: string;
   productSlug: string;
   productPrice: number | string;
@@ -38,85 +37,67 @@ export function AddToCartButton({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // 🛒 Pull the active item addition hook engine from context
-  const { addToCart } = useCart();
+  // Use a flexible type to prevent "Yellow" warnings in Cursor/VS Code
+  const cart = useCart() as any; 
+  
+  // Find if item is already in cart to handle "Update" vs "Add"
+  const items = cart?.items || [];
+  const existingItem = items.find((item: any) => item.productId === productId);
 
-  function handleAdd() {
-    // If you want to force sign-in before adding items, leave this here.
-    // If you want guests to be able to add items to their local cart, remove this block!
-    if (!session) {
-      router.push(
-        `/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`,
-      );
+  // Clear message after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  async function handleAdd() {
+    if (status === "unauthenticated") {
+      router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
 
     setLoading(true);
-    setMessage(null);
-
+    
     try {
-      // 🚀 FIXED: Instead of hitting an external api endpoint, update your client state engine!
-      addToCart({
-        id: productId,
-        name: productName,
-        slug: productSlug,
-        price: Number(productPrice) || 0,
-        imageUrl: productImageUrl || "",
-        category: productCategory || "General",
-        quantity: quantity,
-        stock: productStockMax ?? (inStock ? 99 : 0),
-      });
+      // Calculate delta so we don't "double stack" the quantity
+      const quantityToAdd = existingItem ? quantity - existingItem.quantity : quantity;
 
-      setMessage("Added to cart!");
-    } catch (err) {
-      console.error(err);
-      setMessage("Something went wrong");
+      if (quantityToAdd !== 0) {
+        cart.addToCart({
+          productId: productId,
+          name: productName,
+          slug: productSlug,
+          price: Number(productPrice),
+          imageUrl: productImageUrl || "",
+          category: productCategory || "Uncategorized",
+          quantity: quantityToAdd,
+          stock: productStockMax || 10
+        });
+        setMessage(existingItem ? "Quantity updated!" : "Added to cart!");
+      } else {
+        setMessage("Already in cart at this quantity");
+      }
+    } catch (error) {
+      setMessage("Error updating cart");
     } finally {
       setLoading(false);
     }
   }
 
-  if (status === "loading") {
-    return (
-      <button
-        type="button"
-        disabled
-        className="w-full rounded-lg bg-neutral-200 px-6 py-3.5 font-semibold text-neutral-500"
-      >
-        Loading…
-      </button>
-    );
-  }
-
   return (
-    <div className={`space-y-2 ${className ?? ""}`}>
+    <div className={`w-full ${className || ""}`}>
       <button
-        type="button"
         onClick={handleAdd}
-        disabled={!inStock || loading}
-        className="w-full rounded-lg bg-neutral-900 px-6 py-3.5 font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 cursor-pointer"
+        disabled={!inStock || loading || status === "loading"}
+        className="w-full rounded-lg bg-neutral-900 py-3 text-sm font-bold text-white transition hover:bg-black disabled:bg-neutral-300"
       >
-        {!inStock
-          ? "Out of stock"
-          : loading
-            ? "Adding…"
-            : session
-              ? buttonLabel
-              : "Sign in to Add to Cart"}
+        {loading ? "Processing..." : !inStock ? "Sold Out" : buttonLabel}
       </button>
-      
       {message && (
-        <p
-          className={`text-sm ${message.includes("Added") ? "text-green-700" : "text-red-600"}`}
-          role="status"
-        >
+        <p className="mt-2 text-center text-xs font-medium text-green-600 animate-in fade-in slide-in-from-top-1">
           {message}
-        </p>
-      )}
-      
-      {!session && inStock && (
-        <p className="text-sm text-neutral-500">
-          Cart is saved to your account when signed in.
         </p>
       )}
     </div>

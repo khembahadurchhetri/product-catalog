@@ -1,100 +1,143 @@
+
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { useSession } from "next-auth/react";
 
 export type CartItem = {
-  id: string;
+  id: string;        // cart row id
+  productId: string; // actual product id — used for API calls
   name: string;
-  slug: string;
   price: number;
   imageUrl: string;
   category: string;
   quantity: number;
-  stock: number;
 };
 
 type CartContextType = {
-  cart: CartItem[];
-  addToCart: (product: any) => void;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  items: CartItem[];
+  totalItems: number;
+  subtotal: number;
+  addToCart: (item: Omit<CartItem, "id">) => Promise<void>;
+  removeFromCart: (productId: string) => Promise<void>;
+  updateQuantity: (productId: string, quantity: number) => Promise<void>;
   clearCart: () => void;
-  cartCount: number;
-  cartTotal: number;
+  loading: boolean;
 };
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
+export function CartProvider({ children }: { children: ReactNode }) {
+  const { data: session, status } = useSession();
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Load from storage on mount safely
-  useEffect(() => {
-    const stored = localStorage.getItem("shopco_cart");
-    if (stored) {
-      try {
-        setCart(JSON.parse(stored));
-      } catch (e) {
-        console.error("Failed parsing cart local storage context data:", e);
-      }
-    }
-    setIsInitialized(true);
-  }, []);
+  const userId = session?.user?.id;
 
-  // Save to storage on change tracking loop
-  useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem("shopco_cart", JSON.stringify(cart));
-    }
-  }, [cart, isInitialized]);
-
-  const addToCart = (product: any) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: product.id,
-          name: product.name,
-          slug: product.slug,
-          price: Number(product.price) || 0,
-          imageUrl: product.imageUrl || product.image_url || "",
-          category: product.category || "General",
-          quantity: 1,
-          stock: Number(product.stock) || 99,
-        },
-      ];
-    });
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const updateQuantity = (id: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(id);
+  const fetchCart = useCallback(async () => {
+    if (!userId) {
+      setItems([]);
       return;
     }
-    setCart((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
+    setLoading(true);
+    try {
+      const res = await fetch("/api/cart");
+      if (res.ok) {
+        const data = await res.json();
+        // Map API response — productId comes from getCartForUser join
+        setItems(
+          (data.items ?? []).map((item: any) => ({
+            id: item.id,
+            productId: item.productId,
+            name: item.name,
+            price: Number(item.price),
+            imageUrl: item.imageUrl || "/placeholder.jpg",
+            category: item.category || "General",
+            quantity: item.quantity,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to fetch cart:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (status !== "loading") fetchCart();
+  }, [fetchCart, status]);
+
+  const addToCart = async (item: Omit<CartItem, "id">) => {
+    if (!userId) return;
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: item.productId, quantity: item.quantity }),
+      });
+      if (res.ok) await fetchCart();
+    } catch (err) {
+      console.error("addToCart error:", err);
+    }
   };
 
-  const clearCart = () => setCart([]);
+  const removeFromCart = async (productId: string) => {
+    if (!userId) return;
+    try {
+      // ✅ productId in query param — matches DELETE handler
+      const res = await fetch(`/api/cart?productId=${productId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) await fetchCart();
+    } catch (err) {
+      console.error("removeFromCart error:", err);
+    }
+  };
 
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const updateQuantity = async (productId: string, quantity: number) => {
+    if (!userId) return;
+    if (quantity <= 0) {
+      await removeFromCart(productId);
+      return;
+    }
+    try {
+      // ✅ Send productId — matches PATCH handler schema
+      const res = await fetch("/api/cart", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity }),
+      });
+      if (res.ok) await fetchCart();
+    } catch (err) {
+      console.error("updateQuantity error:", err);
+    }
+  };
+
+  const clearCart = () => setItems([]);
+
+  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
+  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, cartTotal }}
+      value={{
+        items,
+        totalItems,
+        subtotal,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+        loading,
+      }}
     >
       {children}
     </CartContext.Provider>
@@ -102,7 +145,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useCart() {
-  const context = useContext(CartContext);
-  if (!context) throw new Error("useCart must be wrapped inside a CartProvider");
-  return context;
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within a CartProvider");
+  return ctx;
 }
