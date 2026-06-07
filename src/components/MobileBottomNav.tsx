@@ -14,7 +14,7 @@ export function MobileBottomNav({ isSignedIn }: MobileBottomNavProps) {
   const pathname = usePathname();
   
   // 🛒 FIXED: Track changes inside the client cart context directly
-  const { cartCount } = useCart();
+  const { totalItems } = useCart();
 
   const linkClass = (href: string) =>
     `flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium ${
@@ -39,9 +39,9 @@ export function MobileBottomNav({ isSignedIn }: MobileBottomNavProps) {
           <IconCart className="h-6 w-6" />
           Cart
           {/* 🚀 The badge now automatically listens to your cart state updates */}
-          {cartCount > 0 && (
+          {totalItems > 0 && (
             <span className="absolute right-1/4 top-0 flex h-4 min-w-4 -translate-y-0.5 items-center justify-center rounded-full bg-neutral-900 px-1 text-[9px] font-bold text-white">
-              {cartCount > 99 ? "99+" : cartCount}
+              {totalItems > 99 ? "99+" : totalItems}
             </span>
           )}
         </Link>
