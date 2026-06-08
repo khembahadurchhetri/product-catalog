@@ -40,9 +40,14 @@ export default function CartPage() {
 
       if (res.ok) {
         const json = await res.json();
-        // ✅ Show order ID in a nice toast instead of alert
-        setOrderToast("Order #" + (json.orderId || json.id || "confirmed") + " placed successfully!");
+        // ✅ Delete all cart items from DB so they don't come back
+        for (const item of items) {
+          await fetch(`/api/cart?productId=${item.productId}`, {
+            method: "DELETE",
+          });
+        }
         clearCart();
+        setOrderToast("Order #" + (json.orderId || json.id || "confirmed") + " placed successfully!");
         setTimeout(() => {
           setOrderToast("");
           window.location.href = "/";
@@ -62,7 +67,7 @@ export default function CartPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8 min-h-screen">
 
-      {/* ✅ Order success toast */}
+      {/* Order success toast */}
       {orderToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg">
           🎉 {orderToast}
